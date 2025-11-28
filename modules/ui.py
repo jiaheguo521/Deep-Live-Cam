@@ -3,10 +3,12 @@ import webbrowser
 import customtkinter as ctk
 from typing import Callable, Tuple
 import cv2
-from cv2_enumerate_cameras import enumerate_cameras  # Add this import
+from cv2_enumerate_cameras import enumerate_cameras
 from PIL import Image, ImageOps
 import time
 import json
+import struct
+from multiprocessing import shared_memory
 import modules.globals
 import modules.metadata
 from modules.face_analyser import (
@@ -935,6 +937,16 @@ def get_available_cameras():
 def create_webcam_preview(camera_index: int):
     global preview_label, PREVIEW
 
+    # Shared Memory Setup
+    shm = None
+    shm_name = os.environ.get("RAS_SHARED_MEM_NAME")
+    if shm_name:
+        try:
+            shm = shared_memory.SharedMemory(name=shm_name)
+            print(f"Connected to Shared Memory: {shm_name}")
+        except Exception as e:
+            print(f"Failed to connect to Shared Memory: {e}")
+
     cap = VideoCapturer(camera_index)
     if not cap.start(PREVIEW_DEFAULT_WIDTH, PREVIEW_DEFAULT_HEIGHT, 60):
         update_status("Failed to start camera")
@@ -943,14 +955,21 @@ def create_webcam_preview(camera_index: int):
     preview_label.configure(width=PREVIEW_DEFAULT_WIDTH, height=PREVIEW_DEFAULT_HEIGHT)
     PREVIEW.deiconify()
 
+    from collections import deque
+
     frame_processors = get_frame_processors_modules(modules.globals.frame_processors)
     source_image = None
     prev_time = time.time()
     fps_update_interval = 0.5
     frame_count = 0
     fps = 0
+    
+    # Frame Buffer for Synchronization
+    # Stores tuples: (capture_timestamp, ctk_image)
+    frame_buffer = deque()
 
     while True:
+        start_time = time.time()
         ret, frame = cap.read()
         if not ret:
             break
@@ -1013,13 +1032,100 @@ def create_webcam_preview(camera_index: int):
         image = ImageOps.contain(
             image, (temp_frame.shape[1], temp_frame.shape[0]), Image.LANCZOS
         )
-        image = ctk.CTkImage(image, size=image.size)
-        preview_label.configure(image=image)
+        ctk_image = ctk.CTkImage(image, size=image.size)
+        
+        # Push to buffer with timestamp
+        frame_buffer.append((start_time, ctk_image))
+
+        # Synchronization Logic
+        image_to_show = None
+        
+        if shm:
+            try:
+                process_time = time.time() - start_time
+                current_delay_ms = process_time * 1000
+                
+                # Write to SHM
+                shm.buf[8:16] = struct.pack('d', current_delay_ms)
+                
+                # Read Audio Delay as Target
+                target_delay_ms = struct.unpack('d', shm.buf[0:8])[0]
+                
+                # If Audio delay is 0 (inactive), treat as real-time
+                target_delay_sec = target_delay_ms / 1000.0
+                
+                # Safety Clamp: Prevent indefinite freezing if audio reports garbage/huge delay
+                # 1.0 second is already a massive delay for real-time interaction.
+                # Also, if target_delay is 0 (meaning audio stopped), we should NOT wait.
+                target_delay_sec = min(target_delay_sec, 1.0)
+                
+                if target_delay_sec == 0.0:
+                    # Audio inactive or real-time mode
+                    if frame_buffer:
+                         # Just show the oldest frame (standard FIFO) or clear buffer
+                         _, image_to_show = frame_buffer.popleft()
+                         best_frame = image_to_show # Ensure we enter display logic
+                         
+                else:
+                    current_time = time.time()
+                    
+                    # Buffer Management Strategy:
+                    # We pick the newest frame that is ready (age >= target_delay).
+                    # If NO frame is ready, we do NOT block/pause. We just keep showing the last frame.
+                    # If MULTIPLE frames are ready, we skip to the latest ready one (dropping old frames) to catch up.
+                    
+                    best_frame = None
+                    
+                    while frame_buffer:
+                        timestamp, img = frame_buffer[0]
+                        age = current_time - timestamp
+                        
+                        if age >= target_delay_sec:
+                            # This frame is ready. It's a candidate.
+                            best_frame = img
+                            frame_buffer.popleft() # Remove from buffer
+                            
+                            # Check if next frame is ALSO ready?
+                            if frame_buffer:
+                                next_ts, _ = frame_buffer[0]
+                                if (current_time - next_ts) >= target_delay_sec:
+                                    # Next one is also ready.
+                                    # Loop again to discard 'best_frame' and check the next one.
+                                    continue
+                                else:
+                                    # Next one is NOT ready yet.
+                                    # So 'best_frame' is the most recent ready frame. We are done.
+                                    break
+                            else:
+                                # Buffer empty, 'best_frame' is the only one we have.
+                                break
+                        else:
+                            # Oldest frame in buffer is NOT ready.
+                            # So nothing in the buffer is ready.
+                            break
+                
+                if best_frame:
+                    image_to_show = best_frame
+                        
+            except Exception as e:
+                # On error, just drain buffer (fail-safe to real-time)
+                if frame_buffer:
+                    _, image_to_show = frame_buffer.popleft()
+        else:
+            # No SHM, real-time mode
+            if frame_buffer:
+                _, image_to_show = frame_buffer.popleft()
+
+        if image_to_show:
+            preview_label.configure(image=image_to_show)
+            
         ROOT.update()
 
         if PREVIEW.state() == "withdrawn":
             break
 
+    if shm:
+        shm.close()
     cap.release()
     PREVIEW.withdraw()
 
