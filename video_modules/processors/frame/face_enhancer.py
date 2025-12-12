@@ -8,12 +8,12 @@ import os
 import platform
 import torch # Make sure torch is imported
 
-import modules.globals
-import modules.processors.frame.core
-from modules.core import update_status
-from modules.face_analyser import get_one_face
-from modules.typing import Frame, Face
-from modules.utilities import (
+import video_modules.globals
+import video_modules.processors.frame.core
+from video_modules.core import update_status
+from video_modules.face_analyser import get_one_face
+from video_modules.typing import Frame, Face
+from video_modules.utilities import (
     conditional_download,
     is_image,
     is_video,
@@ -42,8 +42,8 @@ def pre_check() -> bool:
 
 
 def pre_start() -> bool:
-    if not is_image(modules.globals.target_path) and not is_video(
-        modules.globals.target_path
+    if not is_image(video_modules.globals.target_path) and not is_video(
+        video_modules.globals.target_path
     ):
         update_status("Select an image or video for target path.", NAME)
         return False
@@ -194,7 +194,7 @@ def process_image(source_path: str | None, target_path: str, output_path: str) -
 def process_video(source_path: str | None, temp_frame_paths: List[str]) -> None:
     """Processes video frames using the frame processor core."""
     # source_path might be optional depending on how process_video is called
-    modules.processors.frame.core.process_video(source_path, temp_frame_paths, process_frames)
+    video_modules.processors.frame.core.process_video(source_path, temp_frame_paths, process_frames)
 
 # Optional: Keep process_frame_v2 if it's used elsewhere, otherwise it's redundant
 # def process_frame_v2(temp_frame: Frame) -> Frame:

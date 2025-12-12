@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
-from modules.typing import Face, Frame
-import modules.globals
+from video_modules.typing import Face, Frame
+import video_modules.globals
 
 def apply_color_transfer(source, target):
     """
@@ -105,7 +105,7 @@ def create_lower_mouth_mask(
 
         # Expand the landmarks outward using the mouth_mask_size
         expansion_factor = (
-            1 + modules.globals.mask_down_size * modules.globals.mouth_mask_size
+            1 + video_modules.globals.mask_down_size * video_modules.globals.mouth_mask_size
         )  # Adjust expansion based on slider
         expanded_landmarks = (lower_lip_landmarks - center) * expansion_factor + center
 
@@ -120,7 +120,7 @@ def create_lower_mouth_mask(
             5,
         ]  # Indices for landmarks 2, 65, 66, 62, 70, 69, 18
         toplip_extension = (
-            modules.globals.mask_size * modules.globals.mouth_mask_size * 0.5
+            video_modules.globals.mask_size * video_modules.globals.mouth_mask_size * 0.5
         )  # Adjust extension based on slider
         for idx in toplip_indices:
             direction = expanded_landmarks[idx] - center
@@ -198,8 +198,8 @@ def create_eyes_mask(face: Face, frame: Frame) -> (np.ndarray, np.ndarray, tuple
         def get_eye_dimensions(eye_points):
             x_coords = eye_points[:, 0]
             y_coords = eye_points[:, 1]
-            width = int((np.max(x_coords) - np.min(x_coords)) * (1 + modules.globals.mask_down_size * modules.globals.eyes_mask_size))
-            height = int((np.max(y_coords) - np.min(y_coords)) * (1 + modules.globals.mask_down_size * modules.globals.eyes_mask_size))
+            width = int((np.max(x_coords) - np.min(x_coords)) * (1 + video_modules.globals.mask_down_size * video_modules.globals.eyes_mask_size))
+            height = int((np.max(y_coords) - np.min(y_coords)) * (1 + video_modules.globals.mask_down_size * video_modules.globals.eyes_mask_size))
             return width, height
         
         left_width, left_height = get_eye_dimensions(left_eye)
@@ -334,7 +334,7 @@ def create_eyebrows_mask(face: Face, frame: Frame) -> (np.ndarray, np.ndarray, t
         
         # Calculate bounding box with padding adjusted by size
         all_points = np.vstack([left_eyebrow, right_eyebrow])
-        padding_factor = modules.globals.eyebrows_mask_size
+        padding_factor = video_modules.globals.eyebrows_mask_size
         min_x = np.min(all_points[:, 0]) - 25 * padding_factor
         max_x = np.max(all_points[:, 0]) + 25 * padding_factor
         min_y = np.min(all_points[:, 1]) - 20 * padding_factor
@@ -506,8 +506,8 @@ def apply_mask_area(
         # Apply additional feathering
         feather_amount = min(
             30,
-            box_width // modules.globals.mask_feather_ratio,
-            box_height // modules.globals.mask_feather_ratio,
+            box_width // video_modules.globals.mask_feather_ratio,
+            box_height // video_modules.globals.mask_feather_ratio,
         )
         feathered_mask = cv2.GaussianBlur(
             polygon_mask.astype(float), (0, 0), feather_amount

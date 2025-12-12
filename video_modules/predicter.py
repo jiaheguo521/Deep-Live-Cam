@@ -2,9 +2,9 @@ import numpy
 import opennsfw2
 from PIL import Image
 import cv2  # Add OpenCV import
-import modules.globals  # Import globals to access the color correction toggle
+import video_modules.globals  # Import globals to access the color correction toggle
 
-from modules.typing import Frame
+from video_modules.typing import Frame
 
 MAX_PROBABILITY = 0.85
 
@@ -13,7 +13,7 @@ model = None
 
 def predict_frame(target_frame: Frame) -> bool:
     # Convert the frame to RGB before processing if color correction is enabled
-    if modules.globals.color_correction:
+    if video_modules.globals.color_correction:
         target_frame = cv2.cvtColor(target_frame, cv2.COLOR_BGR2RGB)
         
     image = Image.fromarray(target_frame)

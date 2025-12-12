@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import List, Any
 from tqdm import tqdm
 
-import modules.globals
+import video_modules.globals
 
 TEMP_FILE = "temp.mp4"
 TEMP_DIRECTORY = "temp"
@@ -27,7 +27,7 @@ def run_ffmpeg(args: List[str]) -> bool:
         "-hwaccel",
         "auto",
         "-loglevel",
-        modules.globals.log_level,
+        video_modules.globals.log_level,
     ]
     commands.extend(args)
     try:
@@ -83,9 +83,9 @@ def create_video(target_path: str, fps: float = 30.0) -> None:
             "-i",
             os.path.join(temp_directory_path, "%04d.png"),
             "-c:v",
-            modules.globals.video_encoder,
+            video_modules.globals.video_encoder,
             "-crf",
-            str(modules.globals.video_quality),
+            str(video_modules.globals.video_quality),
             "-pix_fmt",
             "yuv420p",
             "-vf",
@@ -161,7 +161,7 @@ def move_temp(target_path: str, output_path: str) -> None:
 def clean_temp(target_path: str) -> None:
     temp_directory_path = get_temp_directory_path(target_path)
     parent_directory_path = os.path.dirname(temp_directory_path)
-    if not modules.globals.keep_frames and os.path.isdir(temp_directory_path):
+    if not video_modules.globals.keep_frames and os.path.isdir(temp_directory_path):
         shutil.rmtree(temp_directory_path)
     if os.path.exists(parent_directory_path) and not os.listdir(parent_directory_path):
         os.rmdir(parent_directory_path)

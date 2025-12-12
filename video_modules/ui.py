@@ -9,9 +9,9 @@ import time
 import json
 import struct
 from multiprocessing import shared_memory
-import modules.globals
-import modules.metadata
-from modules.face_analyser import (
+import video_modules.globals
+import video_modules.metadata
+from video_modules.face_analyser import (
     get_one_face,
     get_unique_faces_from_target_image,
     get_unique_faces_from_target_video,
@@ -19,17 +19,17 @@ from modules.face_analyser import (
     has_valid_map,
     simplify_maps,
 )
-from modules.capturer import get_video_frame, get_video_frame_total
-from modules.processors.frame.core import get_frame_processors_modules
-from modules.utilities import (
+from video_modules.capturer import get_video_frame, get_video_frame_total
+from video_modules.processors.frame.core import get_frame_processors_modules
+from video_modules.utilities import (
     is_image,
     is_video,
     resolve_relative_path,
     has_image_extension,
 )
-from modules.video_capture import VideoCapturer
-from modules.gettext import LanguageManager
-from modules import globals
+from video_modules.video_capture import VideoCapturer
+from video_modules.gettext import LanguageManager
+from video_modules import globals
 import platform
 
 if platform.system() == "Windows":
@@ -79,7 +79,7 @@ source_label_dict = {}
 source_label_dict_live = {}
 target_label_dict_live = {}
 
-img_ft, vid_ft = modules.globals.file_types
+img_ft, vid_ft = video_modules.globals.file_types
 
 
 def init(start: Callable[[], None], destroy: Callable[[], None], lang: str) -> ctk.CTk:
@@ -95,19 +95,19 @@ def init(start: Callable[[], None], destroy: Callable[[], None], lang: str) -> c
 
 def save_switch_states():
     switch_states = {
-        "keep_fps": modules.globals.keep_fps,
-        "keep_audio": modules.globals.keep_audio,
-        "keep_frames": modules.globals.keep_frames,
-        "many_faces": modules.globals.many_faces,
-        "map_faces": modules.globals.map_faces,
-        "color_correction": modules.globals.color_correction,
-        "nsfw_filter": modules.globals.nsfw_filter,
-        "live_mirror": modules.globals.live_mirror,
-        "live_resizable": modules.globals.live_resizable,
-        "fp_ui": modules.globals.fp_ui,
-        "show_fps": modules.globals.show_fps,
-        "mouth_mask": modules.globals.mouth_mask,
-        "show_mouth_mask_box": modules.globals.show_mouth_mask_box,
+        "keep_fps": video_modules.globals.keep_fps,
+        "keep_audio": video_modules.globals.keep_audio,
+        "keep_frames": video_modules.globals.keep_frames,
+        "many_faces": video_modules.globals.many_faces,
+        "map_faces": video_modules.globals.map_faces,
+        "color_correction": video_modules.globals.color_correction,
+        "nsfw_filter": video_modules.globals.nsfw_filter,
+        "live_mirror": video_modules.globals.live_mirror,
+        "live_resizable": video_modules.globals.live_resizable,
+        "fp_ui": video_modules.globals.fp_ui,
+        "show_fps": video_modules.globals.show_fps,
+        "mouth_mask": video_modules.globals.mouth_mask,
+        "show_mouth_mask_box": video_modules.globals.show_mouth_mask_box,
     }
     with open("switch_states.json", "w") as f:
         json.dump(switch_states, f)
@@ -117,19 +117,19 @@ def load_switch_states():
     try:
         with open("switch_states.json", "r") as f:
             switch_states = json.load(f)
-        modules.globals.keep_fps = switch_states.get("keep_fps", True)
-        modules.globals.keep_audio = switch_states.get("keep_audio", True)
-        modules.globals.keep_frames = switch_states.get("keep_frames", False)
-        modules.globals.many_faces = switch_states.get("many_faces", False)
-        modules.globals.map_faces = switch_states.get("map_faces", False)
-        modules.globals.color_correction = switch_states.get("color_correction", False)
-        modules.globals.nsfw_filter = switch_states.get("nsfw_filter", False)
-        modules.globals.live_mirror = switch_states.get("live_mirror", False)
-        modules.globals.live_resizable = switch_states.get("live_resizable", False)
-        modules.globals.fp_ui = switch_states.get("fp_ui", {"face_enhancer": False})
-        modules.globals.show_fps = switch_states.get("show_fps", False)
-        modules.globals.mouth_mask = switch_states.get("mouth_mask", False)
-        modules.globals.show_mouth_mask_box = switch_states.get(
+        video_modules.globals.keep_fps = switch_states.get("keep_fps", True)
+        video_modules.globals.keep_audio = switch_states.get("keep_audio", True)
+        video_modules.globals.keep_frames = switch_states.get("keep_frames", False)
+        video_modules.globals.many_faces = switch_states.get("many_faces", False)
+        video_modules.globals.map_faces = switch_states.get("map_faces", False)
+        video_modules.globals.color_correction = switch_states.get("color_correction", False)
+        video_modules.globals.nsfw_filter = switch_states.get("nsfw_filter", False)
+        video_modules.globals.live_mirror = switch_states.get("live_mirror", False)
+        video_modules.globals.live_resizable = switch_states.get("live_resizable", False)
+        video_modules.globals.fp_ui = switch_states.get("fp_ui", {"face_enhancer": False})
+        video_modules.globals.show_fps = switch_states.get("show_fps", False)
+        video_modules.globals.mouth_mask = switch_states.get("mouth_mask", False)
+        video_modules.globals.show_mouth_mask_box = switch_states.get(
             "show_mouth_mask_box", False
         )
     except FileNotFoundError:
@@ -149,7 +149,7 @@ def create_root(start: Callable[[], None], destroy: Callable[[], None]) -> ctk.C
     root = ctk.CTk()
     root.minsize(ROOT_WIDTH, ROOT_HEIGHT)
     root.title(
-        f"{modules.metadata.name} {modules.metadata.version} {modules.metadata.edition}"
+        f"{video_modules.metadata.name} {video_modules.metadata.version} {video_modules.metadata.edition}"
     )
     root.configure()
     root.protocol("WM_DELETE_WINDOW", lambda: destroy())
@@ -178,33 +178,33 @@ def create_root(start: Callable[[], None], destroy: Callable[[], None]) -> ctk.C
     )
     select_target_button.place(relx=0.6, rely=0.30, relwidth=0.3, relheight=0.1)
 
-    keep_fps_value = ctk.BooleanVar(value=modules.globals.keep_fps)
+    keep_fps_value = ctk.BooleanVar(value=video_modules.globals.keep_fps)
     keep_fps_checkbox = ctk.CTkSwitch(
         root,
         text=_("Keep fps"),
         variable=keep_fps_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "keep_fps", keep_fps_value.get()),
+            setattr(video_modules.globals, "keep_fps", keep_fps_value.get()),
             save_switch_states(),
         ),
     )
     keep_fps_checkbox.place(relx=0.1, rely=0.5)
 
-    keep_frames_value = ctk.BooleanVar(value=modules.globals.keep_frames)
+    keep_frames_value = ctk.BooleanVar(value=video_modules.globals.keep_frames)
     keep_frames_switch = ctk.CTkSwitch(
         root,
         text=_("Keep frames"),
         variable=keep_frames_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "keep_frames", keep_frames_value.get()),
+            setattr(video_modules.globals, "keep_frames", keep_frames_value.get()),
             save_switch_states(),
         ),
     )
     keep_frames_switch.place(relx=0.1, rely=0.55)
 
-    enhancer_value = ctk.BooleanVar(value=modules.globals.fp_ui["face_enhancer"])
+    enhancer_value = ctk.BooleanVar(value=video_modules.globals.fp_ui["face_enhancer"])
     enhancer_switch = ctk.CTkSwitch(
         root,
         text=_("Face Enhancer"),
@@ -217,94 +217,94 @@ def create_root(start: Callable[[], None], destroy: Callable[[], None]) -> ctk.C
     )
     enhancer_switch.place(relx=0.1, rely=0.6)
 
-    keep_audio_value = ctk.BooleanVar(value=modules.globals.keep_audio)
+    keep_audio_value = ctk.BooleanVar(value=video_modules.globals.keep_audio)
     keep_audio_switch = ctk.CTkSwitch(
         root,
         text=_("Keep audio"),
         variable=keep_audio_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "keep_audio", keep_audio_value.get()),
+            setattr(video_modules.globals, "keep_audio", keep_audio_value.get()),
             save_switch_states(),
         ),
     )
     keep_audio_switch.place(relx=0.6, rely=0.5)
 
-    many_faces_value = ctk.BooleanVar(value=modules.globals.many_faces)
+    many_faces_value = ctk.BooleanVar(value=video_modules.globals.many_faces)
     many_faces_switch = ctk.CTkSwitch(
         root,
         text=_("Many faces"),
         variable=many_faces_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "many_faces", many_faces_value.get()),
+            setattr(video_modules.globals, "many_faces", many_faces_value.get()),
             save_switch_states(),
         ),
     )
     many_faces_switch.place(relx=0.6, rely=0.55)
 
-    color_correction_value = ctk.BooleanVar(value=modules.globals.color_correction)
+    color_correction_value = ctk.BooleanVar(value=video_modules.globals.color_correction)
     color_correction_switch = ctk.CTkSwitch(
         root,
         text=_("Fix Blueish Cam"),
         variable=color_correction_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "color_correction", color_correction_value.get()),
+            setattr(video_modules.globals, "color_correction", color_correction_value.get()),
             save_switch_states(),
         ),
     )
     color_correction_switch.place(relx=0.6, rely=0.6)
 
-    #    nsfw_value = ctk.BooleanVar(value=modules.globals.nsfw_filter)
-    #    nsfw_switch = ctk.CTkSwitch(root, text='NSFW filter', variable=nsfw_value, cursor='hand2', command=lambda: setattr(modules.globals, 'nsfw_filter', nsfw_value.get()))
+    #    nsfw_value = ctk.BooleanVar(value=video_modules.globals.nsfw_filter)
+    #    nsfw_switch = ctk.CTkSwitch(root, text='NSFW filter', variable=nsfw_value, cursor='hand2', command=lambda: setattr(video_modules.globals, 'nsfw_filter', nsfw_value.get()))
     #    nsfw_switch.place(relx=0.6, rely=0.7)
 
-    map_faces = ctk.BooleanVar(value=modules.globals.map_faces)
+    map_faces = ctk.BooleanVar(value=video_modules.globals.map_faces)
     map_faces_switch = ctk.CTkSwitch(
         root,
         text=_("Map faces"),
         variable=map_faces,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "map_faces", map_faces.get()),
+            setattr(video_modules.globals, "map_faces", map_faces.get()),
             save_switch_states(),
             close_mapper_window() if not map_faces.get() else None
         ),
     )
     map_faces_switch.place(relx=0.1, rely=0.65)
 
-    show_fps_value = ctk.BooleanVar(value=modules.globals.show_fps)
+    show_fps_value = ctk.BooleanVar(value=video_modules.globals.show_fps)
     show_fps_switch = ctk.CTkSwitch(
         root,
         text=_("Show FPS"),
         variable=show_fps_value,
         cursor="hand2",
         command=lambda: (
-            setattr(modules.globals, "show_fps", show_fps_value.get()),
+            setattr(video_modules.globals, "show_fps", show_fps_value.get()),
             save_switch_states(),
         ),
     )
     show_fps_switch.place(relx=0.6, rely=0.65)
 
-    mouth_mask_var = ctk.BooleanVar(value=modules.globals.mouth_mask)
+    mouth_mask_var = ctk.BooleanVar(value=video_modules.globals.mouth_mask)
     mouth_mask_switch = ctk.CTkSwitch(
         root,
         text=_("Mouth Mask"),
         variable=mouth_mask_var,
         cursor="hand2",
-        command=lambda: setattr(modules.globals, "mouth_mask", mouth_mask_var.get()),
+        command=lambda: setattr(video_modules.globals, "mouth_mask", mouth_mask_var.get()),
     )
     mouth_mask_switch.place(relx=0.1, rely=0.45)
 
-    show_mouth_mask_box_var = ctk.BooleanVar(value=modules.globals.show_mouth_mask_box)
+    show_mouth_mask_box_var = ctk.BooleanVar(value=video_modules.globals.show_mouth_mask_box)
     show_mouth_mask_box_switch = ctk.CTkSwitch(
         root,
         text=_("Show Mouth Mask Box"),
         variable=show_mouth_mask_box_var,
         cursor="hand2",
         command=lambda: setattr(
-            modules.globals, "show_mouth_mask_box", show_mouth_mask_box_var.get()
+            video_modules.globals, "show_mouth_mask_box", show_mouth_mask_box_var.get()
         ),
     )
     show_mouth_mask_box_switch.place(relx=0.6, rely=0.45)
@@ -374,17 +374,17 @@ def create_root(start: Callable[[], None], destroy: Callable[[], None]) -> ctk.C
     def on_transparency_change(value: float):
         # Convert slider value to float
         val = float(value)
-        modules.globals.opacity = val  # Set global opacity
+        video_modules.globals.opacity = val  # Set global opacity
         percentage = int(val * 100)
 
         if percentage == 0:
-            modules.globals.fp_ui["face_enhancer"] = False
+            video_modules.globals.fp_ui["face_enhancer"] = False
             update_status("Transparency set to 0% - Face swapping disabled.")
         elif percentage == 100:
-            modules.globals.face_swapper_enabled = True
+            video_modules.globals.face_swapper_enabled = True
             update_status("Transparency set to 100%.")
         else:
-            modules.globals.face_swapper_enabled = True
+            video_modules.globals.face_swapper_enabled = True
             update_status(f"Transparency set to {percentage}%")
 
     # 2) Transparency label and slider (placed ABOVE sharpness)
@@ -410,7 +410,7 @@ def create_root(start: Callable[[], None], destroy: Callable[[], None]) -> ctk.C
     # 3) Sharpness label & slider
     sharpness_var = ctk.DoubleVar(value=0.0)  # start at 0.0
     def on_sharpness_change(value: float):
-        modules.globals.sharpness = float(value)
+        video_modules.globals.sharpness = float(value)
         update_status(f"Sharpness set to {value:.1f}")
 
     sharpness_label = ctk.CTkLabel(root, text="Sharpness:")
@@ -466,18 +466,18 @@ def analyze_target(start: Callable[[], None], root: ctk.CTk):
         update_status("Please complete pop-up or close it.")
         return
 
-    if modules.globals.map_faces:
-        modules.globals.source_target_map = []
+    if video_modules.globals.map_faces:
+        video_modules.globals.source_target_map = []
 
-        if is_image(modules.globals.target_path):
+        if is_image(video_modules.globals.target_path):
             update_status("Getting unique faces")
             get_unique_faces_from_target_image()
-        elif is_video(modules.globals.target_path):
+        elif is_video(video_modules.globals.target_path):
             update_status("Getting unique faces")
             get_unique_faces_from_target_video()
 
-        if len(modules.globals.source_target_map) > 0:
-            create_source_target_popup(start, root, modules.globals.source_target_map)
+        if len(video_modules.globals.source_target_map) > 0:
+            create_source_target_popup(start, root, video_modules.globals.source_target_map)
         else:
             update_status("No faces found in target")
     else:
@@ -639,13 +639,13 @@ def update_pop_live_status(text: str) -> None:
 
 
 def update_tumbler(var: str, value: bool) -> None:
-    modules.globals.fp_ui[var] = value
+    video_modules.globals.fp_ui[var] = value
     save_switch_states()
     # If we're currently in a live preview, update the frame processors
     if PREVIEW.state() == "normal":
         global frame_processors
         frame_processors = get_frame_processors_modules(
-            modules.globals.frame_processors
+            video_modules.globals.frame_processors
         )
 
 
@@ -659,36 +659,36 @@ def select_source_path() -> None:
         filetypes=[img_ft],
     )
     if is_image(source_path):
-        modules.globals.source_path = source_path
-        RECENT_DIRECTORY_SOURCE = os.path.dirname(modules.globals.source_path)
-        image = render_image_preview(modules.globals.source_path, (200, 200))
+        video_modules.globals.source_path = source_path
+        RECENT_DIRECTORY_SOURCE = os.path.dirname(video_modules.globals.source_path)
+        image = render_image_preview(video_modules.globals.source_path, (200, 200))
         source_label.configure(image=image)
     else:
-        modules.globals.source_path = None
+        video_modules.globals.source_path = None
         source_label.configure(image=None)
 
 
 def swap_faces_paths() -> None:
     global RECENT_DIRECTORY_SOURCE, RECENT_DIRECTORY_TARGET
 
-    source_path = modules.globals.source_path
-    target_path = modules.globals.target_path
+    source_path = video_modules.globals.source_path
+    target_path = video_modules.globals.target_path
 
     if not is_image(source_path) or not is_image(target_path):
         return
 
-    modules.globals.source_path = target_path
-    modules.globals.target_path = source_path
+    video_modules.globals.source_path = target_path
+    video_modules.globals.target_path = source_path
 
-    RECENT_DIRECTORY_SOURCE = os.path.dirname(modules.globals.source_path)
-    RECENT_DIRECTORY_TARGET = os.path.dirname(modules.globals.target_path)
+    RECENT_DIRECTORY_SOURCE = os.path.dirname(video_modules.globals.source_path)
+    RECENT_DIRECTORY_TARGET = os.path.dirname(video_modules.globals.target_path)
 
     PREVIEW.withdraw()
 
-    source_image = render_image_preview(modules.globals.source_path, (200, 200))
+    source_image = render_image_preview(video_modules.globals.source_path, (200, 200))
     source_label.configure(image=source_image)
 
-    target_image = render_image_preview(modules.globals.target_path, (200, 200))
+    target_image = render_image_preview(video_modules.globals.target_path, (200, 200))
     target_label.configure(image=target_image)
 
 
@@ -702,24 +702,24 @@ def select_target_path() -> None:
         filetypes=[img_ft, vid_ft],
     )
     if is_image(target_path):
-        modules.globals.target_path = target_path
-        RECENT_DIRECTORY_TARGET = os.path.dirname(modules.globals.target_path)
-        image = render_image_preview(modules.globals.target_path, (200, 200))
+        video_modules.globals.target_path = target_path
+        RECENT_DIRECTORY_TARGET = os.path.dirname(video_modules.globals.target_path)
+        image = render_image_preview(video_modules.globals.target_path, (200, 200))
         target_label.configure(image=image)
     elif is_video(target_path):
-        modules.globals.target_path = target_path
-        RECENT_DIRECTORY_TARGET = os.path.dirname(modules.globals.target_path)
+        video_modules.globals.target_path = target_path
+        RECENT_DIRECTORY_TARGET = os.path.dirname(video_modules.globals.target_path)
         video_frame = render_video_preview(target_path, (200, 200))
         target_label.configure(image=video_frame)
     else:
-        modules.globals.target_path = None
+        video_modules.globals.target_path = None
         target_label.configure(image=None)
 
 
 def select_output_path(start: Callable[[], None]) -> None:
     global RECENT_DIRECTORY_OUTPUT, img_ft, vid_ft
 
-    if is_image(modules.globals.target_path):
+    if is_image(video_modules.globals.target_path):
         output_path = ctk.filedialog.asksaveasfilename(
             title=_("save image output file"),
             filetypes=[img_ft],
@@ -727,7 +727,7 @@ def select_output_path(start: Callable[[], None]) -> None:
             initialfile="output.png",
             initialdir=RECENT_DIRECTORY_OUTPUT,
         )
-    elif is_video(modules.globals.target_path):
+    elif is_video(video_modules.globals.target_path):
         output_path = ctk.filedialog.asksaveasfilename(
             title=_("save video output file"),
             filetypes=[vid_ft],
@@ -738,8 +738,8 @@ def select_output_path(start: Callable[[], None]) -> None:
     else:
         output_path = None
     if output_path:
-        modules.globals.output_path = output_path
-        RECENT_DIRECTORY_OUTPUT = os.path.dirname(modules.globals.output_path)
+        video_modules.globals.output_path = output_path
+        RECENT_DIRECTORY_OUTPUT = os.path.dirname(video_modules.globals.output_path)
         start()
 
 
@@ -748,7 +748,7 @@ def check_and_ignore_nsfw(target, destroy: Callable = None) -> bool:
     TODO: Consider to make blur the target.
     """
     from numpy import ndarray
-    from modules.predicter import predict_image, predict_video, predict_frame
+    from video_modules.predicter import predict_image, predict_video, predict_frame
 
     if type(target) is str:  # image/video file path
         check_nsfw = predict_image if has_image_extension(target) else predict_video
@@ -806,32 +806,32 @@ def render_video_preview(
 def toggle_preview() -> None:
     if PREVIEW.state() == "normal":
         PREVIEW.withdraw()
-    elif modules.globals.source_path and modules.globals.target_path:
+    elif video_modules.globals.source_path and video_modules.globals.target_path:
         init_preview()
         update_preview()
 
 
 def init_preview() -> None:
-    if is_image(modules.globals.target_path):
+    if is_image(video_modules.globals.target_path):
         preview_slider.pack_forget()
-    if is_video(modules.globals.target_path):
-        video_frame_total = get_video_frame_total(modules.globals.target_path)
+    if is_video(video_modules.globals.target_path):
+        video_frame_total = get_video_frame_total(video_modules.globals.target_path)
         preview_slider.configure(to=video_frame_total)
         preview_slider.pack(fill="x")
         preview_slider.set(0)
 
 
 def update_preview(frame_number: int = 0) -> None:
-    if modules.globals.source_path and modules.globals.target_path:
+    if video_modules.globals.source_path and video_modules.globals.target_path:
         update_status("Processing...")
-        temp_frame = get_video_frame(modules.globals.target_path, frame_number)
-        if modules.globals.nsfw_filter and check_and_ignore_nsfw(temp_frame):
+        temp_frame = get_video_frame(video_modules.globals.target_path, frame_number)
+        if video_modules.globals.nsfw_filter and check_and_ignore_nsfw(temp_frame):
             return
         for frame_processor in get_frame_processors_modules(
-                modules.globals.frame_processors
+                video_modules.globals.frame_processors
         ):
             temp_frame = frame_processor.process_frame(
-                get_one_face(cv2.imread(modules.globals.source_path)), temp_frame
+                get_one_face(cv2.imread(video_modules.globals.source_path)), temp_frame
             )
         image = Image.fromarray(cv2.cvtColor(temp_frame, cv2.COLOR_BGR2RGB))
         image = ImageOps.contain(
@@ -851,15 +851,15 @@ def webcam_preview(root: ctk.CTk, camera_index: int):
         POPUP_LIVE.focus()
         return
 
-    if not modules.globals.map_faces:
-        if modules.globals.source_path is None:
+    if not video_modules.globals.map_faces:
+        if video_modules.globals.source_path is None:
             update_status("Please select a source image first")
             return
         create_webcam_preview(camera_index)
     else:
-        modules.globals.source_target_map = []
+        video_modules.globals.source_target_map = []
         create_source_target_popup_for_webcam(
-            root, modules.globals.source_target_map, camera_index
+            root, video_modules.globals.source_target_map, camera_index
         )
 
 
@@ -957,7 +957,7 @@ def create_webcam_preview(camera_index: int):
 
     from collections import deque
 
-    frame_processors = get_frame_processors_modules(modules.globals.frame_processors)
+    frame_processors = get_frame_processors_modules(video_modules.globals.frame_processors)
     source_image = None
     prev_time = time.time()
     fps_update_interval = 0.5
@@ -976,10 +976,10 @@ def create_webcam_preview(camera_index: int):
 
         temp_frame = frame.copy()
 
-        if modules.globals.live_mirror:
+        if video_modules.globals.live_mirror:
             temp_frame = cv2.flip(temp_frame, 1)
 
-        if modules.globals.live_resizable:
+        if video_modules.globals.live_resizable:
             temp_frame = fit_image_to_size(
                 temp_frame, PREVIEW.winfo_width(), PREVIEW.winfo_height()
             )
@@ -989,21 +989,21 @@ def create_webcam_preview(camera_index: int):
                 temp_frame, PREVIEW.winfo_width(), PREVIEW.winfo_height()
             )
 
-        if not modules.globals.map_faces:
-            if source_image is None and modules.globals.source_path:
-                source_image = get_one_face(cv2.imread(modules.globals.source_path))
+        if not video_modules.globals.map_faces:
+            if source_image is None and video_modules.globals.source_path:
+                source_image = get_one_face(cv2.imread(video_modules.globals.source_path))
 
             for frame_processor in frame_processors:
                 if frame_processor.NAME == "DLC.FACE-ENHANCER":
-                    if modules.globals.fp_ui["face_enhancer"]:
+                    if video_modules.globals.fp_ui["face_enhancer"]:
                         temp_frame = frame_processor.process_frame(None, temp_frame)
                 else:
                     temp_frame = frame_processor.process_frame(source_image, temp_frame)
         else:
-            modules.globals.target_path = None
+            video_modules.globals.target_path = None
             for frame_processor in frame_processors:
                 if frame_processor.NAME == "DLC.FACE-ENHANCER":
-                    if modules.globals.fp_ui["face_enhancer"]:
+                    if video_modules.globals.fp_ui["face_enhancer"]:
                         temp_frame = frame_processor.process_frame_v2(temp_frame)
                 else:
                     temp_frame = frame_processor.process_frame_v2(temp_frame)
@@ -1016,7 +1016,7 @@ def create_webcam_preview(camera_index: int):
             frame_count = 0
             prev_time = current_time
 
-        if modules.globals.show_fps:
+        if video_modules.globals.show_fps:
             cv2.putText(
                 temp_frame,
                 f"FPS: {fps:.1f}",

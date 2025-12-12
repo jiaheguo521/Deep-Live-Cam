@@ -4,17 +4,17 @@ import insightface
 import threading
 import numpy as np
 import platform
-import modules.globals
-import modules.processors.frame.core
-from modules.core import update_status
-from modules.face_analyser import get_one_face, get_many_faces, default_source_face
-from modules.typing import Face, Frame
-from modules.utilities import (
+import video_modules.globals
+import video_modules.processors.frame.core
+from video_modules.core import update_status
+from video_modules.face_analyser import get_one_face, get_many_faces, default_source_face
+from video_modules.typing import Face, Frame
+from video_modules.utilities import (
     conditional_download,
     is_image,
     is_video,
 )
-from modules.cluster_analysis import find_closest_centroid
+from video_modules.cluster_analysis import find_closest_centroid
 import os
 from collections import deque
 import time
@@ -75,14 +75,14 @@ def get_face_swapper() -> Any:
     with THREAD_LOCK:
         if FACE_SWAPPER is None:
             model_name = "inswapper_128.onnx"
-            if "CUDAExecutionProvider" in modules.globals.execution_providers:
+            if "CUDAExecutionProvider" in video_modules.globals.execution_providers:
                 model_name = "inswapper_128_fp16.onnx"
             model_path = os.path.join(models_dir, model_name)
             update_status(f"Loading face swapper model from: {model_path}", NAME)
             try:
                 # Optimized provider configuration for Apple Silicon
                 providers_config = []
-                for p in modules.globals.execution_providers:
+                for p in video_modules.globals.execution_providers:
                     if p == "CoreMLExecutionProvider" and IS_APPLE_SILICON:
                         # Enhanced CoreML configuration for M1-M5
                         providers_config.append((
@@ -171,7 +171,7 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
     # --- Post-swap Processing (Masking, Opacity, etc.) ---
     # Now, work with the guaranteed uint8 'swapped_frame'
 
-    if getattr(modules.globals, "mouth_mask", False): # Check if mouth_mask is enabled
+    if getattr(video_modules.globals, "mouth_mask", False): # Check if mouth_mask is enabled
         # Create a mask for the target face
         face_mask = create_face_mask(target_face, temp_frame) # Use temp_frame (original shape) for mask creation geometry
 
@@ -187,7 +187,7 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
                 swapped_frame, mouth_cutout, mouth_box, face_mask, lower_lip_polygon
             )
 
-            if getattr(modules.globals, "show_mouth_mask_box", False):
+            if getattr(video_modules.globals, "show_mouth_mask_box", False):
                 mouth_mask_data = (mouth_mask, mouth_cutout, mouth_box, lower_lip_polygon)
                 # Draw visualization on the swapped_frame *before* opacity blending
                 swapped_frame = draw_mouth_mask_visualization(
@@ -195,7 +195,7 @@ def swap_face(source_face: Face, target_face: Face, temp_frame: Frame) -> Frame:
                 )
 
     # Apply opacity blend between the original frame and the swapped frame
-    opacity = getattr(modules.globals, "opacity", 1.0)
+    opacity = getattr(video_modules.globals, "opacity", 1.0)
     # Ensure opacity is within valid range [0.0, 1.0]
     opacity = max(0.0, min(1.0, opacity))
 
@@ -216,7 +216,7 @@ def get_faces_optimized(frame: Frame, use_cache: bool = True) -> Optional[List[F
     
     if not use_cache or not IS_APPLE_SILICON:
         # Standard detection
-        if modules.globals.many_faces:
+        if video_modules.globals.many_faces:
             return get_many_faces(frame)
         else:
             face = get_one_face(frame)
@@ -232,7 +232,7 @@ def get_faces_optimized(frame: Frame, use_cache: bool = True) -> Optional[List[F
     
     # Perform detection
     LAST_DETECTION_TIME = current_time
-    if modules.globals.many_faces:
+    if video_modules.globals.many_faces:
         faces = get_many_faces(frame)
     else:
         face = get_one_face(frame)
@@ -253,7 +253,7 @@ def apply_post_processing(current_frame: Frame, swapped_face_bboxes: List[np.nda
     processed_frame = current_frame.copy()
 
     # 1. Apply Sharpening (if enabled) with optimized kernel for Apple Silicon
-    sharpness_value = getattr(modules.globals, "sharpness", 0.0)
+    sharpness_value = getattr(video_modules.globals, "sharpness", 0.0)
     if sharpness_value > 0.0 and swapped_face_bboxes:
         height, width = processed_frame.shape[:2]
         for bbox in swapped_face_bboxes:
@@ -294,8 +294,8 @@ def apply_post_processing(current_frame: Frame, swapped_face_bboxes: List[np.nda
 
 
     # 2. Apply Interpolation (if enabled)
-    enable_interpolation = getattr(modules.globals, "enable_interpolation", False)
-    interpolation_weight = getattr(modules.globals, "interpolation_weight", 0.2)
+    enable_interpolation = getattr(video_modules.globals, "enable_interpolation", False)
+    interpolation_weight = getattr(video_modules.globals, "interpolation_weight", 0.2)
 
     final_frame = processed_frame # Start with the current (potentially sharpened) frame
 
@@ -339,7 +339,7 @@ def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
     DEPRECATED / SIMPLER VERSION - Processes a single frame using one source face.
     Consider using process_frame_v2 for more complex scenarios.
     """
-    if getattr(modules.globals, "opacity", 1.0) == 0:
+    if getattr(video_modules.globals, "opacity", 1.0) == 0:
         # If opacity is 0, no swap happens, so no post-processing needed.
         # Also reset interpolation state if it was active.
         global PREVIOUS_FRAME_RESULT
@@ -351,7 +351,7 @@ def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
     processed_frame = temp_frame # Start with the input frame
     swapped_face_bboxes = [] # Keep track of where swaps happened
 
-    if modules.globals.many_faces:
+    if video_modules.globals.many_faces:
         many_faces = get_many_faces(processed_frame)
         if many_faces:
             current_swap_target = processed_frame.copy() # Apply swaps sequentially on a copy
@@ -375,7 +375,7 @@ def process_frame(source_face: Face, temp_frame: Frame) -> Frame:
 
 def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
     """Handles complex mapping scenarios (map_faces=True) and live streams."""
-    if getattr(modules.globals, "opacity", 1.0) == 0:
+    if getattr(video_modules.globals, "opacity", 1.0) == 0:
         # If opacity is 0, no swap happens, so no post-processing needed.
         # Also reset interpolation state if it was active.
         global PREVIOUS_FRAME_RESULT
@@ -389,26 +389,26 @@ def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
     source_target_pairs = []
 
     # Ensure maps exist before accessing them
-    source_target_map = getattr(modules.globals, "source_target_map", None)
-    simple_map = getattr(modules.globals, "simple_map", None)
+    source_target_map = getattr(video_modules.globals, "source_target_map", None)
+    simple_map = getattr(video_modules.globals, "simple_map", None)
 
     # Check if target is a file path (image or video) or live stream
-    is_file_target = modules.globals.target_path and (is_image(modules.globals.target_path) or is_video(modules.globals.target_path))
+    is_file_target = video_modules.globals.target_path and (is_image(video_modules.globals.target_path) or is_video(video_modules.globals.target_path))
 
     if is_file_target:
         # Processing specific image or video file with pre-analyzed maps
         if source_target_map:
-            if modules.globals.many_faces:
+            if video_modules.globals.many_faces:
                 source_face = default_source_face() # Use default source for all targets
                 if source_face:
                     for map_data in source_target_map:
-                        if is_image(modules.globals.target_path):
+                        if is_image(video_modules.globals.target_path):
                             target_info = map_data.get("target", {})
                             if target_info: # Check if target info exists
                                 target_face = target_info.get("face")
                                 if target_face:
                                     source_target_pairs.append((source_face, target_face))
-                        elif is_video(modules.globals.target_path):
+                        elif is_video(video_modules.globals.target_path):
                              # Find faces for the current frame_path in video map
                              target_frames_data = map_data.get("target_faces_in_frame", [])
                              if target_frames_data: # Check if frame data exists
@@ -425,13 +425,13 @@ def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
                     source_face = source_info.get("face")
                     if not source_face: continue # Skip if no source defined for this map entry
 
-                    if is_image(modules.globals.target_path):
+                    if is_image(video_modules.globals.target_path):
                         target_info = map_data.get("target", {})
                         if target_info:
                            target_face = target_info.get("face")
                            if target_face:
                               source_target_pairs.append((source_face, target_face))
-                    elif is_video(modules.globals.target_path):
+                    elif is_video(video_modules.globals.target_path):
                         target_frames_data = map_data.get("target_faces_in_frame", [])
                         if target_frames_data:
                            target_frames = [f for f in target_frames_data if f and f.get("location") == temp_frame_path]
@@ -445,7 +445,7 @@ def process_frame_v2(temp_frame: Frame, temp_frame_path: str = "") -> Frame:
         # Live stream or webcam processing (analyze faces on the fly)
         detected_faces = get_many_faces(processed_frame)
         if detected_faces:
-            if modules.globals.many_faces:
+            if video_modules.globals.many_faces:
                  source_face = default_source_face() # Use default source for all detected targets
                  if source_face:
                      for target_face in detected_faces:
@@ -507,7 +507,7 @@ def process_frames(
     and saves the result back to the frame path. Handles multi-threading via caller.
     """
     # Determine which processing function to use based on map_faces global setting
-    use_v2 = getattr(modules.globals, "map_faces", False)
+    use_v2 = getattr(video_modules.globals, "map_faces", False)
     source_face = None # Initialize source_face
 
     # --- Pre-load source face only if needed (Simple Mode: map_faces=False) ---
@@ -610,7 +610,7 @@ def process_image(source_path: str, target_path: str, output_path: str) -> None:
     PREVIOUS_FRAME_RESULT = None
     # ---
 
-    use_v2 = getattr(modules.globals, "map_faces", False)
+    use_v2 = getattr(video_modules.globals, "map_faces", False)
 
     # Read target first
     try:
@@ -625,7 +625,7 @@ def process_image(source_path: str, target_path: str, output_path: str) -> None:
     result = None
     try:
         if use_v2:
-            if getattr(modules.globals, "many_faces", False):
+            if getattr(video_modules.globals, "many_faces", False):
                  update_status("Processing image with 'map_faces' and 'many_faces'. Using pre-analysis map.", NAME)
             # V2 processes based on global maps, doesn't need source_path here directly
             # Assumes maps are pre-populated. Pass target_path for map lookup.
@@ -671,14 +671,14 @@ def process_video(source_path: str, temp_frame_paths: List[str]) -> None:
     PREVIOUS_FRAME_RESULT = None
     # ---
 
-    mode_desc = "'map_faces'" if getattr(modules.globals, "map_faces", False) else "'simple'"
-    if getattr(modules.globals, "map_faces", False) and getattr(modules.globals, "many_faces", False):
+    mode_desc = "'map_faces'" if getattr(video_modules.globals, "map_faces", False) else "'simple'"
+    if getattr(video_modules.globals, "map_faces", False) and getattr(video_modules.globals, "many_faces", False):
         mode_desc += " and 'many_faces'. Using pre-analysis map."
     update_status(f"Processing video with {mode_desc} mode.", NAME)
 
     # Pass the correct source_path (needed for simple mode in process_frames)
     # The core processing logic handles calling the right frame function (process_frames)
-    modules.processors.frame.core.process_video(
+    video_modules.processors.frame.core.process_video(
         source_path, temp_frame_paths, process_frames # Pass the newly modified process_frames
     )
 
@@ -728,11 +728,11 @@ def create_lower_mouth_mask(
             return mask, mouth_cutout, mouth_box, lower_lip_polygon
 
 
-        mask_down_size = getattr(modules.globals, "mask_down_size", 0.1) # Default 0.1
+        mask_down_size = getattr(video_modules.globals, "mask_down_size", 0.1) # Default 0.1
         expansion_factor = 1 + mask_down_size
         expanded_landmarks = (lower_lip_landmarks - center) * expansion_factor + center
 
-        mask_size = getattr(modules.globals, "mask_size", 1.0) # Default 1.0
+        mask_size = getattr(video_modules.globals, "mask_size", 1.0) # Default 1.0
         toplip_extension = mask_size * 0.5
 
         # Define toplip indices relative to lower_lip_order (safer)
@@ -793,7 +793,7 @@ def create_lower_mouth_mask(
             cv2.fillPoly(mask_roi, [polygon_relative_to_roi], 255)
 
             # Apply Gaussian blur (ensure kernel size is odd and positive)
-            blur_k_size = getattr(modules.globals, "mask_blur_kernel", 15) # Default 15
+            blur_k_size = getattr(video_modules.globals, "mask_blur_kernel", 15) # Default 15
             blur_k_size = max(1, blur_k_size // 2 * 2 + 1) # Ensure odd
             mask_roi = cv2.GaussianBlur(mask_roi, (blur_k_size, blur_k_size), 0) # Sigma=0 calculates from kernel
 
@@ -973,7 +973,7 @@ def apply_mouth_area(
         cv2.fillPoly(polygon_mask_roi, [adjusted_polygon.astype(np.int32)], 255)
 
         # Feather the polygon mask (Gaussian blur)
-        mask_feather_ratio = getattr(modules.globals, "mask_feather_ratio", 12) # Default 12
+        mask_feather_ratio = getattr(video_modules.globals, "mask_feather_ratio", 12) # Default 12
         # Calculate feather amount based on the smaller dimension of the box
         feather_base_dim = min(box_width, box_height)
         feather_amount = max(1, min(30, feather_base_dim // max(1, mask_feather_ratio))) # Avoid div by zero
@@ -1076,7 +1076,7 @@ def create_face_mask(face: Face, frame: Frame) -> np.ndarray:
 
         # Apply Gaussian blur to feather the mask edges
         # Kernel size should be reasonably large, odd, and positive
-        blur_k_size = getattr(modules.globals, "face_mask_blur", 31) # Default 31
+        blur_k_size = getattr(video_modules.globals, "face_mask_blur", 31) # Default 31
         blur_k_size = max(1, blur_k_size // 2 * 2 + 1) # Ensure odd and positive
 
         # Use sigma=0 to let OpenCV calculate from kernel size
